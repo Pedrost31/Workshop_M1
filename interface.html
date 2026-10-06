@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Yanshee en direct</title>
+<style>
+  :root {
+    --fond: #0b0f14;
+    --carte: #121821;
+    --carte-2: #17202b;
+    --ligne: #222d3a;
+    --texte: #e6edf3;
+    --doux: #8b98a8;
+    --vert: #3ddc97;
+    --orange: #ffb547;
+    --rouge: #ff5d6c;
+    --bleu: #5cc8ff;
+    --violet: #b48cff;
+    --jaune: #ffe066;
+    --rayon: 16px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 20% -10%, #14202e 0%, var(--fond) 60%) fixed, var(--fond);
+    color: var(--texte);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  }
+  .page { max-width: 1180px; margin: 0 auto; }
+
+  header {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    justify-content: space-between; margin-bottom: 18px;
+  }
+  .marque { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--bleu), var(--violet));
+    display: grid; place-items: center; font-weight: 800; color: #0b0f14; font-size: 18px;
+  }
+  h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+  .sous-titre { color: var(--doux); font-size: 12px; }
+  .etat-bloc { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .pastille {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: 12px;
+    background: var(--carte); border: 1px solid var(--ligne);
+  }
+  .point { width: 9px; height: 9px; border-radius: 50%; background: var(--doux); }
+  .pastille.direct .point { background: var(--vert); box-shadow: 0 0 0 0 rgba(61,220,151,.6); animation: pouls 1.6s infinite; }
+  .pastille.perime .point { background: var(--orange); }
+  .pastille.horsligne .point { background: var(--rouge); }
+  @keyframes pouls { 0% { box-shadow: 0 0 0 0 rgba(61,220,151,.55); } 70% { box-shadow: 0 0 0 9px rgba(61,220,151,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,151,0); } }
+  .adresse {
+    display: inline-flex; align-items: center; gap: 6px; color: var(--doux); font-size: 12px;
+  }
+  .adresse input {
+    background: var(--carte); color: var(--texte); border: 1px solid var(--ligne);
+    border-radius: 8px; padding: 6px 8px; width: 190px; font: inherit;
+  }
+
+  .grille { display: grid; gap: 14px; grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .cote > * { min-width: 0; }
+  .carte {
+    background: linear-gradient(180deg, var(--carte-2), var(--carte));
+    border: 1px solid var(--ligne); border-radius: var(--rayon); padding: 16px;
+    min-width: 0;
+  }
+  .carte h2 {
+    margin: 0 0 10px; font-size: 12px; font-weight: 600; color: var(--doux);
+    text-transform: uppercase; letter-spacing: 1.2px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .radar { grid-column: span 7; }
+  .cote { grid-column: span 5; display: grid; gap: 14px; }
+  .capteur { grid-column: span 4; }
+  .historique { grid-column: span 12; }
+  @media (max-width: 900px) {
+    .radar, .cote, .capteur, .historique { grid-column: span 12; }
+  }
+  @media (max-width: 520px) {
+    .mini .val { font-size: 15px; }
+    .distance-grande .valeur { font-size: 46px; }
+    .adresse input { width: 160px; }
+  }
+
+  .radar svg { width: 100%; height: auto; display: block; }
+  .distance-grande {
+    display: flex; align-items: baseline; gap: 8px; justify-content: center; margin-top: -6px;
+  }
+  .distance-grande .valeur { font-size: 56px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -1px; }
+  .distance-grande .unite { color: var(--doux); font-size: 18px; }
+  .verdict {
+    text-align: center; font-weight: 700; letter-spacing: 1px; margin-top: 4px;
+    text-transform: uppercase; font-size: 13px;
+  }
+  .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .mini {
+    background: rgba(255,255,255,.02); border: 1px solid var(--ligne); border-radius: 12px;
+    padding: 10px; text-align: center;
+  }
+  .mini .nom { color: var(--doux); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+  .mini .val { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .grand-chiffre { font-size: 38px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .petit { color: var(--doux); font-size: 12px; }
+  .barre { height: 8px; background: rgba(255,255,255,.06); border-radius: 99px; overflow: hidden; margin: 10px 0 12px; }
+  .barre > div { height: 100%; width: 0%; border-radius: 99px; transition: width .25s ease; }
+  canvas { width: 100%; height: 70px; display: block; }
+  .historique canvas { height: 160px; }
+
+  .batterie-ligne { display: flex; align-items: center; gap: 14px; }
+  .pile {
+    width: 64px; height: 30px; border: 2px solid var(--doux); border-radius: 6px; position: relative; padding: 3px;
+  }
+  .pile::after { content: ""; position: absolute; right: -6px; top: 8px; width: 4px; height: 10px; background: var(--doux); border-radius: 0 2px 2px 0; }
+  .pile > div { height: 100%; width: 0%; border-radius: 3px; background: var(--vert); transition: width .4s; }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stats .val { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .brut {
+    margin-top: 14px; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--doux);
+    background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px; padding: 10px 12px;
+    overflow-x: auto; white-space: nowrap;
+  }
+  .mv-ligne { display: flex; align-items: center; gap: 14px; }
+  .mv-icone {
+    width: 52px; height: 52px; border-radius: 14px; flex: none;
+    display: grid; place-items: center; font-size: 22px; font-weight: 800;
+    background: rgba(139,152,168,.12); color: var(--doux);
+    transition: background .3s, color .3s;
+  }
+  .mv-icone.anime { animation: avance 0.9s ease-in-out infinite; }
+  @keyframes avance { 0%, 100% { transform: translateY(2px); } 50% { transform: translateY(-3px); } }
+  .mv-etat { font-size: 22px; font-weight: 800; letter-spacing: .3px; }
+  .journal {
+    list-style: none; margin: 12px 0 0; padding: 0; max-height: 132px; overflow-y: auto;
+    font-size: 12px; border-top: 1px solid var(--ligne);
+  }
+  .journal li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.03); }
+  .journal .h { color: var(--doux); font-variant-numeric: tabular-nums; flex: none; }
+  .alerte-bandeau {
+    display: none; margin-bottom: 14px; padding: 12px 16px; border-radius: 12px;
+    background: rgba(255,93,108,.12); border: 1px solid rgba(255,93,108,.4); color: #ffc2c8; font-weight: 600;
+  }
+  .alerte-bandeau.visible { display: block; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="marque">
+      <div class="logo">Y</div>
+      <div>
+        <h1>Yanshee en direct</h1>
+        <div class="sous-titre">Capteurs Arduino via capteurs_serveur.py</div>
+      </div>
+    </div>
+    <div class="etat-bloc">
+      <label class="adresse" id="bloc-adresse" hidden>Robot
+        <input id="adresse" value="http://10.124.7.2:8080" spellcheck="false">
+      </label>
+      <span class="pastille horsligne" id="pastille"><span class="point"></span><span id="pastille-texte">Connexion…</span></span>
+    </div>
+  </header>
+
+  <div class="alerte-bandeau" id="bandeau"></div>
+
+  <div class="grille">
+    <section class="carte radar">
+      <h2>Ultrason <span class="petit" id="seuil-texte"></span></h2>
+      <svg viewBox="0 0 320 180" aria-label="Radar ultrason">
+        <defs>
+          <radialGradient id="halo" cx="50%" cy="100%" r="100%">
+            <stop offset="0%" stop-color="#5cc8ff" stop-opacity=".10"/>
+            <stop offset="100%" stop-color="#5cc8ff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <g id="anneaux"></g>
+        <g id="cones"></g>
+        <circle cx="160" cy="168" r="7" fill="#e6edf3"/>
+        <circle cx="160" cy="168" r="12" fill="none" stroke="#e6edf3" stroke-opacity=".25"/>
+      </svg>
+      <div class="distance-grande"><span class="valeur" id="dist-centre">—</span><span class="unite" id="dist-unite"></span></div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="trio">
+        <div class="mini"><div class="nom">Gauche</div><div class="val" id="mini-g">—</div></div>
+        <div class="mini"><div class="nom">Centre</div><div class="val" id="mini-c">—</div></div>
+        <div class="mini"><div class="nom">Droite</div><div class="val" id="mini-d">—</div></div>
+      </div>
+    </section>
+
+    <div class="cote">
+      <section class="carte mouvement">
+        <h2>Mouvement <span class="petit" id="mv-info">marche_obstacle.py</span></h2>
+        <div class="mv-ligne">
+          <div class="mv-icone" id="mv-icone">■</div>
+          <div>
+            <div class="mv-etat" id="mv-etat">—</div>
+            <div class="petit" id="mv-message">En attente du programme</div>
+          </div>
+        </div>
+        <ul class="journal" id="journal"></ul>
+      </section>
+      <section class="carte">
+        <h2>Batterie <span class="petit" id="batterie-charge"></span></h2>
+        <div class="batterie-ligne">
+          <div class="pile"><div id="pile"></div></div>
+          <div class="grand-chiffre" id="batterie">—</div>
+        </div>
+        <div class="petit" id="batterie-detail">Lecture toutes les 10 s</div>
+      </section>
+      <section class="carte">
+        <h2>Liaison</h2>
+        <div class="stats">
+          <div><div class="petit">Âge mesure</div><div class="val" id="age">—</div></div>
+          <div><div class="petit">Requête</div><div class="val" id="latence">—</div></div>
+          <div><div class="petit">Mises à jour</div><div class="val" id="compteur">0</div></div>
+        </div>
+        <div class="brut" id="brut">en attente…</div>
+      </section>
+    </div>
+
+    <section class="carte capteur">
+      <h2>Gaz <span class="petit">MQ-2</span></h2>
+      <div class="grand-chiffre" id="v-gaz">—</div>
+      <div class="barre"><div id="b-gaz" style="background:var(--orange)"></div></div>
+      <canvas id="c-gaz"></canvas>
+    </section>
+    <section class="carte capteur">
+      <h2>Vapeur / eau <span class="petit">Steam</span></h2>
+      <div class="grand-chiffre" id="v-vapeur">—</div>
+      <div class="barre"><div id="b-vapeur" style="background:var(--bleu)"></div></div>
+      <canvas id="c-vapeur"></canvas>
+    </section>
+    <section class="carte capteur">
+      <h2>Lumière <span class="petit">LDR</span></h2>
+      <div class="grand-chiffre" id="v-lum">—</div>
+      <div class="barre"><div id="b-lum" style="background:var(--jaune)"></div></div>
+      <canvas id="c-lum"></canvas>
+    </section>
+
+    <section class="carte historique">
+      <h2>Distance centre, 60 dernières secondes <span class="petit">cm</span></h2>
+      <canvas id="c-distance"></canvas>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- Reglages ----------------------------------------------------------
+  var SEUIL_CM = 35;              // meme seuil que marche_obstacle.py
+  var PORTEE_CM = 400;
+  var PERIODE_MS = 200;           // 5 lectures par seconde
+  var HISTO_S = 60;
+  var BRANCHES = { g: false, c: true, d: false };   // gauche et droite pas encore cables
+
+  // ---- Adresse du robot -------------------------------------------------
+  // Page servie par le robot : meme adresse. Fichier ouvert sur le PC : champ editable.
+  var champ = document.getElementById("adresse");
+  var depuisFichier = location.protocol === "file:";
+  if (depuisFichier) {
+    document.getElementById("bloc-adresse").hidden = false;
+    try { var memo = localStorage.getItem("yanshee-adresse"); if (memo) champ.value = memo; } catch (e) {}
+    champ.addEventListener("change", function () {
+      try { localStorage.setItem("yanshee-adresse", champ.value.trim()); } catch (e) {}
+    });
+  }
+  function base() { return depuisFichier ? champ.value.trim().replace(/\/+$/, "") : ""; }
+
+  // ---- Radar ------------------------------------------------------------
+  var CX = 160, CY = 168, R = 150;
+  var NS = "http://www.w3.org/2000/svg";
+  var ANGLES = { g: -90 - 38, c: -90, d: -90 + 38 };
+  var DEMI = 13;
+
+  function pt(a, r) {
+    var rad = a * Math.PI / 180;
+    return (CX + r * Math.cos(rad)).toFixed(1) + "," + (CY + r * Math.sin(rad)).toFixed(1);
+  }
+  function cone(a, r) {
+    return "M" + CX + "," + CY + " L" + pt(a - DEMI, r) + " A" + r + "," + r + " 0 0 1 " + pt(a + DEMI, r) + " Z";
+  }
+  function el(nom, attrs) {
+    var n = document.createElementNS(NS, nom);
+    for (var k in attrs) n.setAttribute(k, attrs[k]);
+    return n;
+  }
+
+  var anneaux = document.getElementById("anneaux");
+  anneaux.appendChild(el("path", { d: "M" + (CX - R) + "," + CY + " A" + R + "," + R + " 0 0 1 " + (CX + R) + "," + CY + " Z", fill: "url(#halo)" }));
+  [1, 2, 3, 4].forEach(function (m) {
+    var r = R * m / 4;
+    anneaux.appendChild(el("path", { d: "M" + (CX - r) + "," + CY + " A" + r + "," + r + " 0 0 1 " + (CX + r) + "," + CY,
+      fill: "none", stroke: "#8b98a8", "stroke-opacity": ".18", "stroke-dasharray": "3 4" }));
+    var t = el("text", { x: CX + r - 2, y: CY - 3, fill: "#8b98a8", "font-size": "9", "text-anchor": "end", opacity: ".7" });
+    t.textContent = m + " m";
+    anneaux.appendChild(t);
+  });
+  var rSeuil = R * SEUIL_CM / PORTEE_CM;
+  anneaux.appendChild(el("path", { d: "M" + (CX - rSeuil) + "," + CY + " A" + rSeuil + "," + rSeuil + " 0 0 1 " + (CX + rSeuil) + "," + CY,
+    fill: "rgba(255,93,108,.08)", stroke: "#ff5d6c", "stroke-opacity": ".5" }));
+  document.getElementById("seuil-texte").textContent = "arrêt < " + SEUIL_CM + " cm";
+
+  var cones = {};
+  var groupe = document.getElementById("cones");
+  ["g", "c", "d"].forEach(function (k) {
+    var fond = el("path", { d: cone(ANGLES[k], R), fill: "#ffffff", "fill-opacity": ".03", stroke: "#ffffff", "stroke-opacity": ".06" });
+    var plein = el("path", { d: cone(ANGLES[k], 0), "fill-opacity": ".35" });
+    var bord = el("path", { fill: "none", "stroke-width": "4", "stroke-linecap": "round" });
+    groupe.appendChild(fond); groupe.appendChild(plein); groupe.appendChild(bord);
+    cones[k] = { plein: plein, bord: bord };
+  });
+
+  function couleurDistance(cm) {
+    if (cm === null) return "#8b98a8";
+    if (cm < SEUIL_CM) return "#ff5d6c";
+    if (cm < 80) return "#ffb547";
+    return "#3ddc97";
+  }
+
+  // Valeur brute -> cm affichable. -1 = pas d'echo = libre (> 4 m). null = absent / non branche.
+  function lireCm(donnees, k) {
+    var v = donnees[k];
+    if (!BRANCHES[k] || v === undefined || v === null) return { etat: "absent", cm: null };
+    if (v < 0) return { etat: "libre", cm: PORTEE_CM };
+    return { etat: "mesure", cm: v };
+  }
+  function texteCm(m) {
+    if (m.etat === "absent") return "non branché";
+    if (m.etat === "libre") return "> 4 m";
+    return m.cm + " cm";
+  }
+
+  function majRadar(donnees) {
+    ["g", "c", "d"].forEach(function (k) {
+      var m = lireCm(donnees, k);
+      var c = cones[k];
+      if (m.etat === "absent") {
+        c.plein.setAttribute("d", cone(ANGLES[k], 0));
+        c.bord.setAttribute("d", "");
+      } else {
+        var r = Math.max(4, Math.min(R, R * m.cm / PORTEE_CM));
+        var coul = m.etat === "libre" ? "#3ddc97" : couleurDistance(m.cm);
+        c.plein.setAttribute("d", cone(ANGLES[k], r));
+        c.plein.setAttribute("fill", coul);
+        c.plein.setAttribute("fill-opacity", m.etat === "libre" ? ".12" : ".35");
+        c.bord.setAttribute("d", m.etat === "libre" ? "" : "M" + pt(ANGLES[k] - DEMI, r) + " A" + r + "," + r + " 0 0 1 " + pt(ANGLES[k] + DEMI, r));
+        c.bord.setAttribute("stroke", coul);
+      }
+      document.getElementById("mini-" + k).textContent = texteCm(m);
+      document.getElementById("mini-" + k).style.color = m.etat === "absent" ? "#8b98a8" : (m.etat === "libre" ? "#3ddc97" : couleurDistance(m.cm));
+    });
+
+    var mc = lireCm(donnees, "c");
+    var grand = document.getElementById("dist-centre");
+    var unite = document.getElementById("dist-unite");
+    var verdict = document.getElementById("verdict");
+    if (mc.etat === "mesure") {
+      grand.textContent = mc.cm >= 100 ? (mc.cm / 100).toFixed(2) : String(mc.cm);
+      unite.textContent = mc.cm >= 100 ? "m" : "cm";
+    } else if (mc.etat === "libre") {
+      grand.textContent = "> 4"; unite.textContent = "m";
+    } else {
+      grand.textContent = "—"; unite.textContent = "";
+    }
+    var coul = mc.etat === "libre" ? "#3ddc97" : couleurDistance(mc.cm);
+    grand.style.color = coul;
+    verdict.style.color = coul;
+    verdict.textContent = mc.etat === "absent" ? "capteur absent"
+      : (mc.etat === "mesure" && mc.cm < SEUIL_CM) ? "Obstacle — arrêt"
+      : (mc.etat === "mesure" && mc.cm < 80) ? "Obstacle proche" : "Voie libre";
+  }
+
+  // ---- Courbes ----------------------------------------------------------
+  var histo = { gaz: [], vapeur: [], lum: [], distance: [] };
+  var COULEURS = { gaz: "#ffb547", vapeur: "#5cc8ff", lum: "#ffe066", distance: "#3ddc97" };
+
+  function ajouter(nom, v) {
+    var t = Date.now();
+    histo[nom].push({ t: t, v: v });
+    while (histo[nom].length && histo[nom][0].t < t - HISTO_S * 1000) histo[nom].shift();
+  }
+
+  function dessiner(nom, min, max, seuil) {
+    var canvas = document.getElementById("c-" + nom);
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+      canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+    }
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    var pts = histo[nom];
+    var maintenant = Date.now();
+    function x(t) { return w - (maintenant - t) / (HISTO_S * 1000) * w; }
+    function y(v) { return h - 4 - (Math.min(max, Math.max(min, v)) - min) / (max - min) * (h - 8); }
+
+    ctx.strokeStyle = "rgba(139,152,168,.12)"; ctx.lineWidth = 1;
+    for (var i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, h * i / 4); ctx.lineTo(w, h * i / 4); ctx.stroke(); }
+    if (seuil !== undefined) {
+      ctx.strokeStyle = "rgba(255,93,108,.6)"; ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(0, y(seuil)); ctx.lineTo(w, y(seuil)); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (pts.length < 2) return;
+
+    var grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, COULEURS[nom] + "55");
+    grad.addColorStop(1, COULEURS[nom] + "00");
+    ctx.beginPath();
+    ctx.moveTo(x(pts[0].t), h);
+    pts.forEach(function (p) { ctx.lineTo(x(p.t), y(p.v)); });
+    ctx.lineTo(x(pts[pts.length - 1].t), h);
+    ctx.closePath();
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.beginPath();
+    pts.forEach(function (p, i) { if (i) ctx.lineTo(x(p.t), y(p.v)); else ctx.moveTo(x(p.t), y(p.v)); });
+    ctx.strokeStyle = COULEURS[nom]; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke();
+
+    var der = pts[pts.length - 1];
+    ctx.beginPath(); ctx.arc(x(der.t), y(der.v), 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = COULEURS[nom]; ctx.fill();
+  }
+
+  function majAnalogique(nom, v) {
+    var champ = document.getElementById("v-" + nom);
+    var barre = document.getElementById("b-" + nom);
+    if (v === undefined || v === null) { champ.textContent = "—"; barre.style.width = "0%"; return; }
+    champ.textContent = v;
+    barre.style.width = Math.max(0, Math.min(100, v / 1023 * 100)).toFixed(1) + "%";
+    ajouter(nom, v);
+  }
+
+  // ---- Etat de la liaison -----------------------------------------------
+  var pastille = document.getElementById("pastille");
+  var pastilleTexte = document.getElementById("pastille-texte");
+  var bandeau = document.getElementById("bandeau");
+  var compteur = 0;
+
+  function etat(classe, texte, alerte) {
+    pastille.className = "pastille " + classe;
+    pastilleTexte.textContent = texte;
+    if (alerte) { bandeau.textContent = alerte; bandeau.classList.add("visible"); }
+    else bandeau.classList.remove("visible");
+  }
+
+  // ---- Boucle -----------------------------------------------------------
+  function lire() {
+    var debut = performance.now();
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var minuteur = setTimeout(function () { if (ctrl) ctrl.abort(); }, 1500);
+    fetch(base() + "/capteurs", { cache: "no-store", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        clearTimeout(minuteur);
+        compteur++;
+        document.getElementById("latence").textContent = Math.round(performance.now() - debut) + " ms";
+        document.getElementById("compteur").textContent = compteur;
+        document.getElementById("age").textContent = d.age === null || d.age === undefined ? "—" : Math.round(d.age * 1000) + " ms";
+        document.getElementById("brut").textContent = JSON.stringify(d);
+
+        if (d.perime) {
+          etat("perime", "Mesure périmée", "Le serveur répond mais l'Arduino n'envoie plus rien : vérifier le câble USB sur la tête du robot.");
+        } else {
+          etat("direct", "En direct");
+          majRadar(d);
+          var mc = lireCm(d, "c");
+          if (mc.etat !== "absent") ajouter("distance", mc.cm);
+          majAnalogique("gaz", d.gaz);
+          majAnalogique("vapeur", d.vapeur);
+          majAnalogique("lum", d.lum);
+        }
+      })
+      .catch(function () {
+        clearTimeout(minuteur);
+        etat("horsligne", "Hors ligne", "Robot injoignable. Vérifier que capteurs_serveur.py tourne et que le PC est sur le même Wi-Fi que le robot.");
+      })
+      .then(function () { setTimeout(lire, PERIODE_MS); });
+  }
+
+  function lireBatterie() {
+    fetch(base() + "/batterie", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var data = d.data || d;
+        var pct = data.percent !== undefined ? data.percent : data.capacity;
+        var texte = document.getElementById("batterie");
+        var pile = document.getElementById("pile");
+        if (typeof pct === "number") {
+          texte.textContent = Math.round(pct) + " %";
+          pile.style.width = Math.max(0, Math.min(100, pct)) + "%";
+          var c = pct < 20 ? "var(--rouge)" : pct < 40 ? "var(--orange)" : "var(--vert)";
+          pile.style.background = c; texte.style.color = c;
+        } else {
+          texte.textContent = "?";
+        }
+        var enCharge = data.charging;
+        document.getElementById("batterie-charge").textContent = enCharge ? "⚡ en charge" : (enCharge === 0 || enCharge === false ? "sur batterie" : "");
+        document.getElementById("batterie-detail").textContent = d.erreur ? d.erreur : JSON.stringify(data);
+      })
+      .catch(function () {
+        document.getElementById("batterie-detail").textContent = "Batterie illisible";
+      })
+      .then(function () { setTimeout(lireBatterie, 10000); });
+  }
+
+  // ---- Mouvement (etat publie par marche_obstacle.py) --------------------
+  var ETATS = {
+    "demarrage":    { texte: "Démarrage",        icone: "…", coul: "#5cc8ff" },
+    "marche":       { texte: "En marche",        icone: "▲", coul: "#3ddc97", anime: true },
+    "obstacle":     { texte: "Obstacle — arrêt", icone: "■", coul: "#ff5d6c" },
+    "arret":        { texte: "Arrêté",           icone: "■", coul: "#ffb547" },
+    "refus":        { texte: "Robot refuse",     icone: "!", coul: "#ff5d6c" },
+    "erreur":       { texte: "Erreur",           icone: "!", coul: "#ff5d6c" },
+    "termine":      { texte: "Au repos",         icone: "●", coul: "#8b98a8" },
+    "jamais lance": { texte: "Pas lancé",        icone: "○", coul: "#8b98a8" }
+  };
+  var dernierJournal = "";
+
+  function heure(t) {
+    var d = new Date(t * 1000);
+    function z(n) { return (n < 10 ? "0" : "") + n; }
+    return z(d.getHours()) + ":" + z(d.getMinutes()) + ":" + z(d.getSeconds());
+  }
+  function depuis(s) {
+    if (s === null || s === undefined) return "";
+    if (s < 60) return "il y a " + Math.round(s) + " s";
+    if (s < 3600) return "il y a " + Math.round(s / 60) + " min";
+    return "il y a " + Math.round(s / 3600) + " h";
+  }
+
+  function lireMarche() {
+    fetch(base() + "/marche", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var cle = d.etat;
+        // "marche" sans nouvelle depuis 2 s : le programme a ete coupe brutalement
+        var coupe = cle === "marche" && d.age > 2;
+        var e = ETATS[cle] || { texte: cle, icone: "?", coul: "#8b98a8" };
+        if (coupe) e = { texte: "Programme coupé ?", icone: "?", coul: "#ffb547" };
+
+        var icone = document.getElementById("mv-icone");
+        icone.textContent = e.icone;
+        icone.style.color = e.coul;
+        icone.style.background = e.coul + "22";
+        icone.className = "mv-icone" + (e.anime ? " anime" : "");
+        var titre = document.getElementById("mv-etat");
+        titre.textContent = e.texte;
+        titre.style.color = e.coul;
+
+        var msg = d.message || (cle === "marche" && d.c !== null && d.c !== undefined ? "Distance devant : " + (d.c < 0 ? "> 4 m" : d.c + " cm") : "");
+        document.getElementById("mv-message").textContent =
+          (msg ? msg + " · " : "") + (cle === "jamais lance" ? "lancer python3 marche_obstacle.py" : depuis(d.age));
+        document.getElementById("mv-info").textContent =
+          d.vitesse ? ("vitesse " + d.vitesse + (d.test ? " · mode test" : "")) : "marche_obstacle.py";
+
+        var j = d.journal || [];
+        var cleJ = JSON.stringify(j);
+        if (cleJ !== dernierJournal) {
+          dernierJournal = cleJ;
+          var ul = document.getElementById("journal");
+          ul.innerHTML = "";
+          j.slice().reverse().forEach(function (ev) {
+            var li = document.createElement("li");
+            var h = document.createElement("span"); h.className = "h"; h.textContent = heure(ev.t);
+            var m = document.createElement("span"); m.textContent = ev.message;
+            m.style.color = (ETATS[ev.etat] || {}).coul || "";
+            li.appendChild(h); li.appendChild(m); ul.appendChild(li);
+          });
+        }
+      })
+      .catch(function () {})
+      .then(function () { setTimeout(lireMarche, 300); });
+  }
+
+  function animer() {
+    dessiner("gaz", 0, 1023);
+    dessiner("vapeur", 0, 1023);
+    dessiner("lum", 0, 1023);
+    dessiner("distance", 0, PORTEE_CM, SEUIL_CM);
+    requestAnimationFrame(animer);
+  }
+
+  lire();
+  lireBatterie();
+  lireMarche();
+  requestAnimationFrame(animer);
+})();
+</script>
+</body>
+</html>

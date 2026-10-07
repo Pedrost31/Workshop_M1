@@ -1,0 +1,134 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Base de donnees d'historique (PostgreSQL + extension TimescaleDB)
+  # ---------------------------------------------------------------------------
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: yanshee-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-yanshee}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yanshee}
+      POSTGRES_DB: ${POSTGRES_DB:-yanshee}
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yanshee} -d ${POSTGRES_DB:-yanshee}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Collecteur : sonde le robot, stocke en DB, expose /metrics pour Prometheus,
+  # et sert l'interface live (interface.html) en proxy du robot.
+  # ---------------------------------------------------------------------------
+  collector:
+    build: ./collector
+    container_name: yanshee-collector
+    restart: unless-stopped
+    environment:
+      ROBOT_URL: ${ROBOT_URL:-http://10.124.7.2:8080}
+      POLL_INTERVAL: ${POLL_INTERVAL:-2}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-1.5}
+      SEUIL_CM: ${SEUIL_CM:-35}
+      PORTEE_CM: ${PORTEE_CM:-400}
+      DB_DSN: postgresql://${POSTGRES_USER:-yanshee}:${POSTGRES_PASSWORD:-yanshee}@timescaledb:5432/${POSTGRES_DB:-yanshee}
+    volumes:
+      - ./interface.html:/app/static/interface.html:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Prometheus : scrute le collecteur et evalue les regles d'alerte
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: yanshee-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - collector
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager : recoit les alertes et les pousse vers le notifier SMS
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: yanshee-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    depends_on:
+      - sms-notifier
+
+  # ---------------------------------------------------------------------------
+  # Notifier : transforme les alertes Alertmanager en EMAIL et/ou SMS
+  # ---------------------------------------------------------------------------
+  sms-notifier:
+    build: ./sms-notifier
+    container_name: yanshee-notifier
+    restart: unless-stopped
+    environment:
+      # Canaux : "email", "sms" ou "email,sms" (vide = auto selon la config)
+      NOTIFY_CHANNELS: ${NOTIFY_CHANNELS:-}
+      NOTIFY_DRY_RUN: ${NOTIFY_DRY_RUN:-false}
+      # --- Email ---
+      EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-smtp}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      # --- Email (SMTP) ---
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TO: ${SMTP_TO:-}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      SMTP_SSL: ${SMTP_SSL:-false}
+      # --- SMS (Free Mobile) ---
+      FREE_MOBILE_USER: ${FREE_MOBILE_USER:-}
+      FREE_MOBILE_PASS: ${FREE_MOBILE_PASS:-}
+      FREE_MOBILE_ACCOUNTS: ${FREE_MOBILE_ACCOUNTS:-}
+    ports:
+      - "5001:5001"
+
+  # ---------------------------------------------------------------------------
+  # Grafana : dashboards d'historique (datasource + dashboard provisionnes)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: yanshee-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+volumes:
+  timescale-data:
+  prometheus-data:
+  grafana-data:

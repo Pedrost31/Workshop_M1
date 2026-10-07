@@ -1,0 +1,6 @@
+# Secrets / config locale
+.env
+
+# Python
+__pycache__/
+*.pyc

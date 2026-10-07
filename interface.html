@@ -77,7 +77,10 @@
   }
   .radar { grid-column: span 7; }
   .cote { grid-column: span 5; display: grid; gap: 14px; }
-  .capteur { grid-column: span 4; }
+  .capteur { grid-column: span 3; }
+  .double { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+  .double .unite { color: var(--doux); font-size: 16px; margin-left: 2px; }
+  @media (max-width: 1100px) { .capteur { grid-column: span 6; } }
   .historique { grid-column: span 12; }
   @media (max-width: 900px) {
     .radar, .cote, .capteur, .historique { grid-column: span 12; }
@@ -244,6 +247,15 @@
       <div class="barre"><div id="b-lum" style="background:var(--jaune)"></div></div>
       <canvas id="c-lum"></canvas>
     </section>
+    <section class="carte capteur">
+      <h2>Température <span class="petit">DHT11</span></h2>
+      <div class="double">
+        <div class="grand-chiffre"><span id="v-temp">—</span><span class="unite">°C</span></div>
+        <div class="grand-chiffre" style="color:var(--bleu)"><span id="v-hum">—</span><span class="unite">%</span></div>
+      </div>
+      <div class="barre"><div id="b-temp" style="background:var(--rouge)"></div></div>
+      <canvas id="c-temp"></canvas>
+    </section>
 
     <section class="carte historique">
       <h2>Distance centre, 60 dernières secondes <span class="petit">cm</span></h2>
@@ -381,8 +393,22 @@
   }
 
   // ---- Courbes ----------------------------------------------------------
-  var histo = { gaz: [], vapeur: [], lum: [], distance: [] };
-  var COULEURS = { gaz: "#ffb547", vapeur: "#5cc8ff", lum: "#ffe066", distance: "#3ddc97" };
+  var histo = { gaz: [], vapeur: [], lum: [], temp: [], distance: [] };
+  var COULEURS = { gaz: "#ffb547", vapeur: "#5cc8ff", lum: "#ffe066", temp: "#ff5d6c", distance: "#3ddc97" };
+
+  function majTemperature(t, h) {
+    var champT = document.getElementById("v-temp");
+    var champH = document.getElementById("v-hum");
+    var barre = document.getElementById("b-temp");
+    if (t === undefined || t === null) {
+      champT.textContent = "—"; champH.textContent = "—"; barre.style.width = "0%";
+      return;
+    }
+    champT.textContent = t;
+    champH.textContent = (h === undefined || h === null) ? "—" : h;
+    barre.style.width = Math.max(0, Math.min(100, t / 50 * 100)).toFixed(1) + "%";   // DHT11 : 0..50 °C
+    ajouter("temp", t);
+  }
 
   function ajouter(nom, v) {
     var t = Date.now();
@@ -480,6 +506,7 @@
           majAnalogique("gaz", d.gaz);
           majAnalogique("vapeur", d.vapeur);
           majAnalogique("lum", d.lum);
+          majTemperature(d.temp, d.hum);
         }
       })
       .catch(function () {
@@ -519,7 +546,9 @@
   var ETATS = {
     "demarrage":    { texte: "Démarrage",        icone: "…", coul: "#5cc8ff" },
     "marche":       { texte: "En marche",        icone: "▲", coul: "#3ddc97", anime: true },
-    "obstacle":     { texte: "Obstacle — arrêt", icone: "■", coul: "#ff5d6c" },
+    "obstacle":     { texte: "Obstacle",         icone: "■", coul: "#ff5d6c" },
+    "tourne":       { texte: "Tourne",           icone: "↻", coul: "#b48cff", anime: true },
+    "libre":        { texte: "Passage trouvé",   icone: "✓", coul: "#3ddc97" },
     "arret":        { texte: "Arrêté",           icone: "■", coul: "#ffb547" },
     "refus":        { texte: "Robot refuse",     icone: "!", coul: "#ff5d6c" },
     "erreur":       { texte: "Erreur",           icone: "!", coul: "#ff5d6c" },
@@ -588,6 +617,7 @@
     dessiner("gaz", 0, 1023);
     dessiner("vapeur", 0, 1023);
     dessiner("lum", 0, 1023);
+    dessiner("temp", 0, 50);
     dessiner("distance", 0, PORTEE_CM, SEUIL_CM);
     requestAnimationFrame(animer);
   }

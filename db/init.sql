@@ -9,9 +9,12 @@ CREATE TABLE IF NOT EXISTS readings (
     dist_g       DOUBLE PRECISION,   -- ultrason gauche (cm)
     dist_c       DOUBLE PRECISION,   -- ultrason centre (cm)
     dist_d       DOUBLE PRECISION,   -- ultrason droite (cm)
+    dist_b       DOUBLE PRECISION,   -- ultrason arriere (cm), si present
     gaz          DOUBLE PRECISION,   -- MQ-2 (0-1023)
     vapeur       DOUBLE PRECISION,   -- steam / eau (0-1023)
     lum          DOUBLE PRECISION,   -- LDR (0-1023)
+    temp         DOUBLE PRECISION,   -- DHT11 temperature (C)
+    hum          DOUBLE PRECISION,   -- DHT11 humidite (%)
     battery_pct  DOUBLE PRECISION,   -- batterie (%)
     charging     BOOLEAN,            -- en charge
     mv_etat      TEXT,               -- etat mouvement (marche, obstacle, ...)

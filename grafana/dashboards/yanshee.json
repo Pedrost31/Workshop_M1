@@ -2,11 +2,12 @@
   "annotations": { "list": [] },
   "editable": true,
   "graphTooltip": 1,
-  "time": { "from": "now-6h", "to": "now" },
-  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "5s",
   "timezone": "browser",
   "title": "Yanshee - Monitoring",
   "uid": "yanshee",
+  "version": 2,
   "schemaVersion": 39,
   "tags": ["yanshee", "robot"],
   "templating": { "list": [] },
@@ -15,7 +16,7 @@
       "id": 1,
       "type": "stat",
       "title": "Robot",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "gridPos": { "h": 4, "w": 3, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_up", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
@@ -35,7 +36,7 @@
       "id": 2,
       "type": "gauge",
       "title": "Batterie",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "gridPos": { "h": 4, "w": 3, "x": 3, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_batterie_pourcent", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
@@ -52,7 +53,7 @@
       "id": 3,
       "type": "stat",
       "title": "Mesures Arduino",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "gridPos": { "h": 4, "w": 3, "x": 6, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_mesure_perime", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
@@ -71,18 +72,88 @@
       "id": 4,
       "type": "stat",
       "title": "Distance centre",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "gridPos": { "h": 4, "w": 3, "x": 9, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_distance_cm{capteur=\"c\"}", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "lengthcm",
+          "unit": "lengthcm", "decimals": 0,
           "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "orange", "value": 35 }, { "color": "green", "value": 80 } ] }
         }
       },
       "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Temperature",
+      "gridPos": { "h": 4, "w": 3, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_temperature_celsius", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius", "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null }, { "color": "green", "value": 15 }, { "color": "orange", "value": 35 }, { "color": "red", "value": 40 } ] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 10,
+      "type": "stat",
+      "title": "Humidite",
+      "gridPos": { "h": 4, "w": 3, "x": 15, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_humidite_pourcent", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent", "decimals": 0, "min": 0, "max": 100,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 70 }, { "color": "red", "value": 80 } ] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Gaz MQ-2",
+      "gridPos": { "h": 4, "w": 3, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_gaz", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0, "min": 0, "max": 1023,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 400 }, { "color": "red", "value": 600 } ] }
+        }
+      },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Mouvement",
+      "gridPos": { "h": 4, "w": 3, "x": 21, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_mouvement == 1", "legendFormat": "{{etat}}", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "—", "color": "text" } } },
+            { "type": "value", "options": { "1": { "text": "ACTIF", "color": "green" } } }
+          ]
+        }
+      },
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "name", "reduceOptions": { "calcs": ["lastNotNull"] } }
     },
     {
       "id": 5,
@@ -91,7 +162,7 @@
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
-        { "expr": "yanshee_distance_cm", "legendFormat": "capteur {{capteur}}", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+        { "expr": "yanshee_distance_cm", "legendFormat": "{{capteur}}", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
       ],
       "fieldConfig": { "defaults": { "unit": "lengthcm", "custom": { "fillOpacity": 10, "lineWidth": 2 } } }
     },
@@ -103,16 +174,28 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_gaz", "legendFormat": "gaz (MQ-2)", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } },
-        { "expr": "yanshee_vapeur", "legendFormat": "vapeur/eau", "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "yanshee_vapeur", "legendFormat": "vapeur / eau", "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus" } },
         { "expr": "yanshee_lumiere", "legendFormat": "lumiere (LDR)", "refId": "C", "datasource": { "type": "prometheus", "uid": "prometheus" } }
       ],
       "fieldConfig": { "defaults": { "min": 0, "max": 1023, "custom": { "fillOpacity": 8, "lineWidth": 2 } } }
     },
     {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Temperature et humidite (DHT11)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_temperature_celsius", "legendFormat": "temperature (C)", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } },
+        { "expr": "yanshee_humidite_pourcent", "legendFormat": "humidite (%)", "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "custom": { "fillOpacity": 10, "lineWidth": 2 } } }
+    },
+    {
       "id": 7,
       "type": "timeseries",
       "title": "Batterie (%)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_batterie_pourcent", "legendFormat": "batterie", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
@@ -122,14 +205,25 @@
     {
       "id": 8,
       "type": "timeseries",
-      "title": "Disponibilite & latence",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "title": "Disponibilite et latence",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         { "expr": "yanshee_up", "legendFormat": "en ligne", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } },
         { "expr": "yanshee_latence_ms", "legendFormat": "latence (ms)", "refId": "B", "datasource": { "type": "prometheus", "uid": "prometheus" } }
       ],
       "fieldConfig": { "defaults": { "custom": { "fillOpacity": 5, "lineWidth": 2 } } }
+    },
+    {
+      "id": 14,
+      "type": "timeseries",
+      "title": "Etat du mouvement",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "yanshee_mouvement", "legendFormat": "{{etat}}", "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" } }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "custom": { "fillOpacity": 20, "lineWidth": 1, "stacking": { "mode": "none" } } } }
     }
   ]
 }

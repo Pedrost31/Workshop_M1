@@ -38,7 +38,7 @@ logging.basicConfig(
 log = logging.getLogger("collector")
 
 KNOWN_STATES = [
-    "demarrage", "marche", "obstacle", "arret",
+    "demarrage", "marche", "obstacle", "tourne", "libre", "arret",
     "refus", "erreur", "termine", "jamais lance",
 ]
 
@@ -49,6 +49,8 @@ g_dist = Gauge("yanshee_distance_cm", "Distance ultrason (cm)", ["capteur"])
 g_gaz = Gauge("yanshee_gaz", "Capteur gaz MQ-2 (0-1023)")
 g_vapeur = Gauge("yanshee_vapeur", "Capteur vapeur/eau steam (0-1023)")
 g_lum = Gauge("yanshee_lumiere", "Capteur lumiere LDR (0-1023)")
+g_temp = Gauge("yanshee_temperature_celsius", "Temperature DHT11 (C)")
+g_hum = Gauge("yanshee_humidite_pourcent", "Humidite DHT11 (%)")
 g_batt = Gauge("yanshee_batterie_pourcent", "Niveau batterie (%)")
 g_charge = Gauge("yanshee_batterie_charge", "Batterie en charge (1) ou non (0)")
 g_lat = Gauge("yanshee_latence_ms", "Latence de la requete /capteurs (ms)")
@@ -89,13 +91,21 @@ def get_conn():
 
 INSERT_SQL = """
     INSERT INTO readings
-        (time, robot_up, perime, dist_g, dist_c, dist_d,
-         gaz, vapeur, lum, battery_pct, charging, mv_etat, latency_ms)
+        (time, robot_up, perime, dist_g, dist_c, dist_d, dist_b,
+         gaz, vapeur, lum, temp, hum, battery_pct, charging, mv_etat, latency_ms)
     VALUES
-        (now(), %(robot_up)s, %(perime)s, %(dist_g)s, %(dist_c)s, %(dist_d)s,
-         %(gaz)s, %(vapeur)s, %(lum)s, %(battery_pct)s, %(charging)s,
+        (now(), %(robot_up)s, %(perime)s, %(dist_g)s, %(dist_c)s, %(dist_d)s, %(dist_b)s,
+         %(gaz)s, %(vapeur)s, %(lum)s, %(temp)s, %(hum)s, %(battery_pct)s, %(charging)s,
          %(mv_etat)s, %(latency_ms)s)
 """
+
+
+def ensure_schema(conn):
+    """Ajoute les colonnes recentes sans recreer la base existante."""
+    with conn.cursor() as cur:
+        cur.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS dist_b DOUBLE PRECISION")
+        cur.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS temp DOUBLE PRECISION")
+        cur.execute("ALTER TABLE readings ADD COLUMN IF NOT EXISTS hum DOUBLE PRECISION")
 
 
 def insert_row(conn, row):
@@ -109,10 +119,13 @@ def update_metrics(up, capteurs, batt, charging, latency, mv_etat):
 
     if up:
         g_perime.set(1 if capteurs.get("perime") else 0)
-        for k in ("g", "c", "d"):
+        for k in ("g", "c", "d", "b"):
             dv = dist_value(capteurs.get(k))
             g_dist.labels(capteur=k).set(dv if dv is not None else NAN)
-        for key, gauge in (("gaz", g_gaz), ("vapeur", g_vapeur), ("lum", g_lum)):
+        for key, gauge in (
+            ("gaz", g_gaz), ("vapeur", g_vapeur), ("lum", g_lum),
+            ("temp", g_temp), ("hum", g_hum),
+        ):
             v = num(capteurs.get(key))
             gauge.set(v if v is not None else NAN)
         g_lat.set(latency if latency is not None else NAN)
@@ -120,9 +133,9 @@ def update_metrics(up, capteurs, batt, charging, latency, mv_etat):
         # Robot hors ligne : on neutralise les mesures pour eviter les
         # fausses alertes sur des valeurs perimees (RobotDown couvre ce cas).
         g_perime.set(NAN)
-        for k in ("g", "c", "d"):
+        for k in ("g", "c", "d", "b"):
             g_dist.labels(capteur=k).set(NAN)
-        for gauge in (g_gaz, g_vapeur, g_lum, g_lat):
+        for gauge in (g_gaz, g_vapeur, g_lum, g_temp, g_hum, g_lat):
             gauge.set(NAN)
 
     if batt is not None:
@@ -187,9 +200,12 @@ def poller():
             "dist_g": dist_value(capteurs.get("g")) if up else None,
             "dist_c": dist_value(capteurs.get("c")) if up else None,
             "dist_d": dist_value(capteurs.get("d")) if up else None,
+            "dist_b": dist_value(capteurs.get("b")) if up else None,
             "gaz": num(capteurs.get("gaz")) if up else None,
             "vapeur": num(capteurs.get("vapeur")) if up else None,
             "lum": num(capteurs.get("lum")) if up else None,
+            "temp": num(capteurs.get("temp")) if up else None,
+            "hum": num(capteurs.get("hum")) if up else None,
             "battery_pct": batt_pct,
             "charging": bool(charging) if charging is not None else None,
             "mv_etat": mv_etat,
@@ -198,6 +214,7 @@ def poller():
         try:
             if conn is None or conn.closed:
                 conn = get_conn()
+                ensure_schema(conn)
             insert_row(conn, row)
         except Exception as e:  # noqa: BLE001
             log.error("Ecriture DB impossible: %s", e)
@@ -269,7 +286,7 @@ def history():
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT time, robot_up, dist_c, gaz, vapeur, lum,
+                SELECT time, robot_up, dist_c, gaz, vapeur, lum, temp, hum,
                        battery_pct, mv_etat
                 FROM readings
                 WHERE time > now() - (%s || ' minutes')::interval
@@ -288,6 +305,12 @@ def history():
 
 
 def main():
+    try:
+        conn = get_conn()
+        ensure_schema(conn)
+        conn.close()
+    except Exception as e:  # noqa: BLE001
+        log.warning("Schema DB pas encore pret: %s", e)
     # On neutralise les metriques au demarrage tant que le robot n'a pas repondu
     update_metrics(False, {}, None, None, None, None)
     threading.Thread(target=poller, daemon=True).start()

@@ -1,0 +1,18 @@
+route:
+  receiver: "sms"
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 3h
+  routes:
+    # Les alertes critiques sont renvoyees plus souvent
+    - matchers:
+        - severity="critical"
+      receiver: "sms"
+      repeat_interval: 1h
+
+receivers:
+  - name: "sms"
+    webhook_configs:
+      - url: "http://sms-notifier:5001/alert"
+        send_resolved: true

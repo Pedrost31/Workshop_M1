@@ -1,0 +1,78 @@
+groups:
+  - name: yanshee
+    rules:
+      # ---- Disponibilite -------------------------------------------------
+      - alert: RobotHorsLigne
+        expr: yanshee_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Robot hors ligne"
+          description: "Le robot ne repond plus depuis 1 min. Verifier capteurs_serveur.py et le Wi-Fi."
+
+      - alert: CollecteurAbsent
+        expr: up{job="yanshee"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Collecteur injoignable"
+          description: "Prometheus n'arrive plus a scruter le collecteur (service collector)."
+
+      - alert: MesurePerimee
+        expr: yanshee_mesure_perime == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mesures Arduino perimees"
+          description: "Le serveur repond mais l'Arduino n'envoie plus rien (cable USB sur la tete ?)."
+
+      # ---- Securite / environnement -------------------------------------
+      - alert: GazEleve
+        expr: yanshee_gaz > 600
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Gaz / fumee detecte (MQ-2)"
+          description: "Niveau de gaz eleve ({{ $value | printf \"%.0f\" }}/1023). Verifier sur place."
+
+      - alert: EauDetectee
+        expr: yanshee_vapeur > 600
+        for: 30s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Eau / vapeur detectee (steam)"
+          description: "Capteur de vapeur eleve ({{ $value | printf \"%.0f\" }}/1023)."
+
+      # ---- Batterie ------------------------------------------------------
+      - alert: BatterieFaible
+        expr: yanshee_batterie_pourcent < 20 and yanshee_batterie_charge == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Batterie faible"
+          description: "Batterie a {{ $value | printf \"%.0f\" }} %. Penser a recharger."
+
+      - alert: BatterieCritique
+        expr: yanshee_batterie_pourcent < 10 and yanshee_batterie_charge == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Batterie critique"
+          description: "Batterie a {{ $value | printf \"%.0f\" }} %. Arret imminent."
+
+      # ---- Mobilite ------------------------------------------------------
+      - alert: RobotBloque
+        expr: yanshee_distance_cm{capteur="c"} < 35
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Robot bloque devant un obstacle"
+          description: "Obstacle a moins de 35 cm depuis 2 min : le robot est probablement coince."

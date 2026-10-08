@@ -15,6 +15,11 @@ scrape_configs:
     static_configs:
       - targets: ["collector:8000"]
 
+  - job_name: "camera"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:8001"]
+
   - job_name: "prometheus"
     static_configs:
       - targets: ["localhost:9090"]

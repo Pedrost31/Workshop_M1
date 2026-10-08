@@ -94,3 +94,31 @@ groups:
         annotations:
           summary: "Robot bloque devant un obstacle"
           description: "Obstacle a moins de 35 cm depuis 2 min : le robot est probablement coince."
+
+      # ---- Camera salle serveurs (Logitech C270) -------------------------
+      - alert: CameraHorsLigne
+        expr: up{job="camera"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Webcam de surveillance hors ligne"
+          description: "Le service camera (port 8001) ne repond plus. Verifier la C270 et start-camera.ps1."
+
+      - alert: CameraMouvement
+        expr: yanshee_camera_motion == 1
+        for: 8s
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mouvement detecte dans la salle serveurs"
+          description: "La C270 a vu du mouvement. Verifier le flux live (localhost:8000)."
+
+      - alert: CameraVisageInconnu
+        expr: yanshee_camera_unknown_faces > 0
+        for: 5s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Visage inconnu devant les serveurs"
+          description: "Un visage non enregistre a ete detecte. Snapshot dans camera/events/."

@@ -1,0 +1,16 @@
+Place ici les photos des personnes autorisees (une personne = un dossier) :
+
+  known_faces/
+    alice/
+      photo1.jpg
+      photo2.jpg
+    bob/
+      photo1.jpg
+
+Conseils :
+- visage de face, bien eclaire, une seule personne par photo
+- 3 a 8 photos par personne, prises avec CETTE webcam si possible
+- formats : .jpg .jpeg .png .bmp
+
+Puis relance le service, ou appelle :
+  http://localhost:8001/reload-faces

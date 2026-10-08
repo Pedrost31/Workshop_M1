@@ -31,6 +31,7 @@ DB_DSN = os.environ.get(
 )
 STATIC_DIR = os.environ.get("STATIC_DIR", "/app/static")
 PORT = int(os.environ.get("PORT", "8000"))
+CAMERA_URL = os.environ.get("CAMERA_URL", "http://host.docker.internal:8001").rstrip("/")
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -265,6 +266,46 @@ def batterie():
 @app.route("/marche")
 def marche():
     return _proxy("/marche")
+
+
+@app.route("/camera/status")
+def camera_status():
+    try:
+        r = requests.get(CAMERA_URL + "/status", timeout=1.5)
+        return Response(
+            r.content, status=r.status_code,
+            content_type=r.headers.get("Content-Type", "application/json"),
+        )
+    except Exception:  # noqa: BLE001
+        return jsonify(up=False, erreur="camera injoignable"), 502
+
+
+@app.route("/camera/enroll", methods=["POST"])
+def camera_enroll():
+    try:
+        r = requests.post(
+            CAMERA_URL + "/enroll",
+            json=request.get_json(silent=True) or {},
+            timeout=5,
+        )
+        return Response(
+            r.content, status=r.status_code,
+            content_type=r.headers.get("Content-Type", "application/json"),
+        )
+    except Exception:  # noqa: BLE001
+        return jsonify(ok=False, erreur="camera injoignable"), 502
+
+
+@app.route("/camera/video")
+def camera_video():
+    try:
+        r = requests.get(CAMERA_URL + "/video", stream=True, timeout=(2, None))
+        return Response(
+            r.iter_content(chunk_size=4096),
+            content_type=r.headers.get("Content-Type", "multipart/x-mixed-replace; boundary=frame"),
+        )
+    except Exception:  # noqa: BLE001
+        return jsonify(erreur="camera injoignable"), 502
 
 
 @app.route("/metrics")

@@ -7,3 +7,5 @@ __pycache__/
 YanAPI.py
 YanAPI/
 sol_reference.png
+camera/.venv/
+camera/events/

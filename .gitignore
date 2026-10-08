@@ -9,3 +9,9 @@ YanAPI/
 sol_reference.png
 camera/.venv/
 camera/events/
+
+# robot_camera (vision : cartographie, YOLO, controle d'acces)
+robot_camera/yolov8n.pt
+robot_camera/map.json
+robot_camera/calib_*.json
+robot_camera/autorises/

@@ -187,6 +187,19 @@
   .surv-pills .ok { color: var(--vert); border-color: rgba(61,220,151,.4); }
   .surv-pills .warn { color: var(--orange); border-color: rgba(255,181,71,.4); }
   .surv-pills .bad { color: var(--rouge); border-color: rgba(255,93,108,.4); }
+  .acces-titre { margin: 14px 0 0; font-size: 13px; font-weight: 700; }
+  .acces-journal { max-height: 300px; }
+  .acces-journal li { align-items: center; }
+  .acces-journal img {
+    width: 44px; height: 44px; object-fit: cover; border-radius: 8px; flex: none;
+    border: 2px solid var(--ligne); background: #000;
+  }
+  .acces-journal .oui img { border-color: var(--vert); }
+  .acces-journal .non img { border-color: var(--rouge); }
+  .acces-journal .decision { font-weight: 700; }
+  .acces-journal .oui .decision { color: var(--vert); }
+  .acces-journal .non .decision { color: var(--rouge); }
+  .acces-journal .detail { color: var(--doux); }
 </style>
 </head>
 <body>
@@ -304,13 +317,17 @@
             <span id="surv-motion">mouvement…</span>
             <span id="surv-faces">visages…</span>
           </div>
-          <div class="petit" id="surv-info">Place-toi face à la caméra, tape ton prénom, puis enregistre 3 à 5 photos (angles légèrement différents).</div>
+          <div class="petit" id="surv-info">Tape ton prénom puis lance le mode enregistrement : la caméra prend 8 photos toute seule pendant que tu bouges un peu la tête.</div>
           <div class="boutons" style="margin-top:10px">
             <input id="surv-nom" placeholder="Prénom" spellcheck="false" style="background:var(--carte);color:var(--texte);border:1px solid var(--ligne);border-radius:10px;padding:8px 12px;font:inherit;width:140px">
-            <button id="surv-enroll">Enregistrer ce visage</button>
+            <button id="surv-auto">Mode enregistrement</button>
+            <button id="surv-enroll">1 photo</button>
           </div>
           <div class="petit" id="surv-enroll-msg" style="margin-top:8px"></div>
-          <ul class="journal" id="surv-journal"></ul>
+          <div class="acces-titre">Journal des accès</div>
+          <ul class="journal acces-journal" id="surv-journal">
+            <li><span class="detail">Aucune décision pour l'instant.</span></li>
+          </ul>
         </div>
       </div>
     </section>
@@ -899,9 +916,13 @@
         } else {
           fv.textContent = "aucun visage"; fv.className = "";
         }
-        etat.textContent = (d.fps ? d.fps + " fps · " : "") + "C270";
+        etat.textContent = (d.fps ? d.fps + " fps · " : "")
+          + (d.fallback ? "⚠ Logitech absente, webcam de secours : " + (d.name || "?") : "Logitech C270");
         carte.classList.toggle("en-danger", !!d.unknown);
         carte.classList.toggle("en-alerte", !!d.motion && !d.unknown);
+        afficherEnrolement(d.enroll);
+        var dernier = d.last_access ? d.last_access.id : 0;
+        if (dernier !== dernierAcces) { dernierAcces = dernier; lireAcces(); }
         var info = document.getElementById("surv-info");
         if (d.last_event) info.textContent = "Dernier événement : " + d.last_event;
         else if (d.known_people && d.known_people.length) {
@@ -915,6 +936,89 @@
       })
       .then(function () { setTimeout(lireCamera, 1000); });
   }
+
+  // ---- Journal des acces : chaque visage autorise / refuse, avec sa photo ----
+  var dernierAcces = -1;
+
+  function lireAcces() {
+    fetch(base() + "/camera/access", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var ul = document.getElementById("surv-journal");
+        var events = d.events || [];
+        ul.innerHTML = "";
+        if (!events.length) {
+          var vide = document.createElement("li");
+          vide.innerHTML = '<span class="detail">Aucune décision pour l\'instant.</span>';
+          ul.appendChild(vide);
+          return;
+        }
+        events.forEach(function (ev) {
+          var li = document.createElement("li");
+          li.className = ev.approved ? "oui" : "non";
+          var img = document.createElement("img");
+          img.alt = ev.approved ? ev.name : "visage inconnu";
+          if (ev.image) img.src = base() + "/camera/access/" + encodeURIComponent(ev.image);
+          var h = document.createElement("span"); h.className = "h"; h.textContent = heure(ev.t);
+          var texte = document.createElement("span");
+          var decision = document.createElement("div"); decision.className = "decision";
+          decision.textContent = ev.approved ? "Accès autorisé — " + ev.name : "Accès refusé — visage inconnu";
+          var detail = document.createElement("div"); detail.className = "detail";
+          detail.textContent = "score " + Number(ev.score).toFixed(2);
+          texte.appendChild(decision); texte.appendChild(detail);
+          li.appendChild(img); li.appendChild(h); li.appendChild(texte);
+          ul.appendChild(li);
+        });
+      })
+      .catch(function () {});
+  }
+
+  // ---- Mode enregistrement auto : la camera prend les photos elle-meme ----
+  var enrolementActif = false;
+
+  function afficherEnrolement(e) {
+    var bouton = document.getElementById("surv-auto");
+    var msg = document.getElementById("surv-enroll-msg");
+    enrolementActif = !!(e && !e.done);
+    bouton.textContent = enrolementActif ? "Arrêter" : "Mode enregistrement";
+    document.getElementById("surv-enroll").disabled = enrolementActif;
+    if (!e) return;
+    if (!e.done) {
+      msg.textContent = e.name + " : " + e.saved + "/" + e.target + " — " + (e.hint || "");
+    } else if (e.saved) {
+      msg.textContent = e.name + " : " + e.saved + " photo(s) enregistrée(s)"
+        + (e.result === "termine" ? "." : " (" + e.result + ").")
+        + " Éloigne-toi puis reviens pour tester.";
+    } else {
+      msg.textContent = "Aucune photo enregistrée (" + e.result + "). " + (e.hint || "");
+    }
+  }
+
+  function appelEnrolement(action, corps) {
+    return fetch(base() + "/camera/enroll/" + action, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps || {})
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); });
+  }
+
+  document.getElementById("surv-auto").addEventListener("click", function () {
+    var msg = document.getElementById("surv-enroll-msg");
+    if (enrolementActif) {
+      appelEnrolement("stop")
+        .then(function (res) { afficherEnrolement(res.d.enroll); })
+        .catch(function () { msg.textContent = "Caméra injoignable."; });
+      return;
+    }
+    var nom = document.getElementById("surv-nom").value.trim();
+    if (!nom) { msg.textContent = "Tape un prénom d'abord."; return; }
+    appelEnrolement("start", { name: nom })
+      .then(function (res) {
+        if (!res.ok) { msg.textContent = res.d.erreur || "Impossible de lancer l'enregistrement."; return; }
+        afficherEnrolement(res.d.enroll);
+      })
+      .catch(function () { msg.textContent = "Caméra injoignable."; });
+  });
 
   document.getElementById("surv-enroll").addEventListener("click", function () {
     var nom = document.getElementById("surv-nom").value.trim();

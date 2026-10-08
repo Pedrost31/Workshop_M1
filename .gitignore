@@ -9,3 +9,5 @@ YanAPI/
 sol_reference.png
 camera/.venv/
 camera/events/
+camera/models/*.part
+camera/models/face_recognition_sface_2021dec.onnx

@@ -1,0 +1,45 @@
+name: Docker
+
+on:
+  push:
+    branches: [main, master, feat/ci-cd]
+    paths:
+      - "docker-compose.yml"
+      - "collector/**"
+      - "sms-notifier/**"
+      - "db/**"
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "grafana/**"
+      - ".github/workflows/docker.yml"
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - "collector/**"
+      - "sms-notifier/**"
+      - "db/**"
+      - "prometheus/**"
+      - "alertmanager/**"
+      - "grafana/**"
+      - ".github/workflows/docker.yml"
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose:
+    name: docker compose config
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Valider le compose
+        run: docker compose -f docker-compose.yml config --quiet
+
+  build:
+    name: Build images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build collector + notifier
+        run: docker compose build collector sms-notifier

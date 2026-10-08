@@ -209,3 +209,18 @@ la tête, 37 cm), `--sans-fenetre`.
 | `GET /carte` | carte de la webcam : `zone`, `robot` (`x`, `y` en cm, `cap`, `age`), `obstacles`, `grille` |
 | `GET /carte.jpg` | vue de dessus annotée |
 | `POST /reference` | photo du sol vide (robot hors de la zone) |
+
+## CI / GitHub Actions
+
+Sur chaque push et pull request :
+
+| Workflow | Rôle |
+|---|---|
+| **Validate** | `pytest tests` + compilation Python |
+| **Lint** | Ruff (vraies erreurs, pas le style) |
+| **Docker** | `docker compose config` + build collector / notifier |
+| **Monitoring** | `promtool` (Prometheus) + `amtool` (Alertmanager) + JSON Grafana |
+| **Security** | gitleaks (secrets) + pip-audit (dépendances) |
+| **Auto Assign** | assigne l'auteur (et Pedrost31) sur les PR |
+
+Dependabot ouvre des PR hebdo pour Actions, pip et Docker.

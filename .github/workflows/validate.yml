@@ -1,0 +1,40 @@
+name: Validate
+
+on:
+  push:
+    branches: [main, master, feat/ci-cd]
+  pull_request:
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Tests Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/requirements-ci.txt
+      - name: Pytest
+        run: python -m pytest tests -v --tb=short
+
+  syntax:
+    name: Syntaxe Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: compileall
+        run: |
+          python -m compileall -q \
+            capteurs_serveur.py marche_obstacle.py cartographie.py verifier_api.py \
+            collector/collector.py sms-notifier/app.py camera/app.py tests

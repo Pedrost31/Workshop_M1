@@ -152,6 +152,26 @@
     background: rgba(255,93,108,.12); border: 1px solid rgba(255,93,108,.4); color: #ffc2c8; font-weight: 600;
   }
   .alerte-bandeau.visible { display: block; }
+  .alerte-bandeau.danger { animation: clignote 1s step-end infinite; }
+  @keyframes clignote { 50% { background: rgba(255,93,108,.28); } }
+  .boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+  .boutons button {
+    font: inherit; font-weight: 600; font-size: 13px; color: var(--texte); cursor: pointer;
+    background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px; padding: 8px 12px;
+  }
+  .boutons button:hover:not(:disabled) { border-color: var(--doux); }
+  .boutons button:disabled { opacity: .45; cursor: not-allowed; }
+  .boutons .gaz { border-color: rgba(255,181,71,.5); }
+  .boutons .chaud { border-color: rgba(255,93,108,.5); }
+  .plan { grid-column: span 12; }
+  .plan-corps { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .plan-corps { grid-template-columns: minmax(0, 1fr); } }
+  .plan svg { width: 100%; height: auto; display: block; max-height: 460px; }
+  .plan-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+  .plan-stats .val { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .plan img { width: 100%; border-radius: 10px; border: 1px solid var(--ligne); margin-top: 10px; }
+  .carte.en-alerte { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange) inset; }
+  .carte.en-danger { border-color: var(--rouge); box-shadow: 0 0 0 1px var(--rouge) inset; }
 </style>
 </head>
 <body>
@@ -211,6 +231,15 @@
         <ul class="journal" id="journal"></ul>
       </section>
       <section class="carte">
+        <h2>Simulation <span class="petit" id="sim-etat">aucune</span></h2>
+        <div class="boutons">
+          <button class="gaz" id="sim-gaz">Fuite de gaz</button>
+          <button class="chaud" id="sim-temp">Surchauffe</button>
+          <button id="sim-stop">Arrêter</button>
+        </div>
+        <div class="petit" id="sim-info" style="margin-top:8px">Fausses valeurs, vraie réaction du robot.</div>
+      </section>
+      <section class="carte">
         <h2>Batterie <span class="petit" id="batterie-charge"></span></h2>
         <div class="batterie-ligne">
           <div class="pile"><div id="pile"></div></div>
@@ -229,8 +258,29 @@
       </section>
     </div>
 
-    <section class="carte capteur">
-      <h2>Gaz <span class="petit">MQ-2</span></h2>
+    <section class="carte plan">
+      <h2>Carte du sol <span class="petit" id="plan-etat">webcam · cartographie.py</span></h2>
+      <div class="plan-corps">
+        <svg id="plan-svg" viewBox="0 0 200 150" aria-label="Carte de la zone de marche"></svg>
+        <div>
+          <div class="plan-stats">
+            <div><div class="petit">Robot (x, y)</div><div class="val" id="plan-position">—</div></div>
+            <div><div class="petit">Cap</div><div class="val" id="plan-cap">—</div></div>
+            <div><div class="petit">Obstacles</div><div class="val" id="plan-obstacles">—</div></div>
+            <div><div class="petit">Sol vide</div><div class="val" id="plan-reference">—</div></div>
+          </div>
+          <div class="boutons">
+            <button id="plan-photo" title="Zone dégagée, robot hors de la zone">Photo du sol vide</button>
+            <button id="plan-voir">Vue caméra</button>
+          </div>
+          <div class="petit" id="plan-info" style="margin-top:8px">Marqueurs 0 à 3 aux coins, 10 sur la tête du robot.</div>
+          <img id="plan-camera" alt="Vue de dessus de la webcam" hidden>
+        </div>
+      </div>
+    </section>
+
+    <section class="carte capteur" id="carte-gaz">
+      <h2>Gaz <span class="petit" id="gaz-info">MQ-2</span></h2>
       <div class="grand-chiffre" id="v-gaz">—</div>
       <div class="barre"><div id="b-gaz" style="background:var(--orange)"></div></div>
       <canvas id="c-gaz"></canvas>
@@ -247,7 +297,7 @@
       <div class="barre"><div id="b-lum" style="background:var(--jaune)"></div></div>
       <canvas id="c-lum"></canvas>
     </section>
-    <section class="carte capteur">
+    <section class="carte capteur" id="carte-temp">
       <h2>Température <span class="petit">DHT11</span></h2>
       <div class="double">
         <div class="grand-chiffre"><span id="v-temp">—</span><span class="unite">°C</span></div>
@@ -474,12 +524,67 @@
   var bandeau = document.getElementById("bandeau");
   var compteur = 0;
 
-  function etat(classe, texte, alerte) {
+  function etat(classe, texte, alerte, danger) {
     pastille.className = "pastille " + classe;
     pastilleTexte.textContent = texte;
     if (alerte) { bandeau.textContent = alerte; bandeau.classList.add("visible"); }
     else bandeau.classList.remove("visible");
+    bandeau.classList.toggle("danger", !!danger);
   }
+
+  // ---- Alertes gaz / temperature (calculees par capteurs_serveur.py) ------
+  var seuils = {};
+
+  function majAlertes(d) {
+    var alertes = d.alertes || [];
+    seuils = d.seuils || {};
+    var niveaux = {};
+    alertes.forEach(function (a) { niveaux[a.type] = a.niveau; });
+    [["gaz", "carte-gaz"], ["temperature", "carte-temp"]].forEach(function (p) {
+      var carte = document.getElementById(p[1]);
+      carte.classList.toggle("en-alerte", niveaux[p[0]] === "alerte");
+      carte.classList.toggle("en-danger", niveaux[p[0]] === "danger");
+    });
+
+    var info = document.getElementById("gaz-info");
+    if (d.gaz_etat === "chauffe") info.textContent = "MQ-2 · chauffe " + d.gaz_chauffe_s + " s";
+    else if (d.gaz_etat === "calibration") info.textContent = "MQ-2 · calibration " + d.gaz_chauffe_s + " s";
+    else if (d.gaz_etat === "pret") info.textContent = "MQ-2 · air normal " + d.gaz_ref;
+    else info.textContent = "MQ-2";
+
+    majSimulation(d);
+    if (!alertes.length) return null;
+    var danger = alertes.some(function (a) { return a.niveau === "danger"; });
+    return { danger: danger, texte: (d.simulation ? "[SIMULATION] " : "") + (danger ? "DANGER — " : "Alerte — ") +
+      alertes.map(function (a) { return a.message; }).join(" · ") };
+  }
+
+  // ---- Simulation (POST /simuler) ------------------------------------------
+  var NOMS_SIM = { gaz: "fuite de gaz", temperature: "surchauffe" };
+
+  function majSimulation(d) {
+    var s = d.simulation;
+    document.getElementById("sim-etat").textContent = s ? (NOMS_SIM[s.type] + " · " + s.reste + " s") : "aucune";
+    document.getElementById("sim-etat").style.color = s ? "var(--orange)" : "";
+    var gaz = document.getElementById("sim-gaz");
+    gaz.disabled = d.gaz_etat !== "pret";
+    gaz.title = gaz.disabled ? "Attendre la calibration du MQ-2" : "";
+  }
+
+  function simuler(type) {
+    var info = document.getElementById("sim-info");
+    fetch(base() + "/simuler?type=" + type, { method: "POST" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        info.textContent = d.erreur ? d.erreur
+          : type === "stop" ? "Simulation arrêtée."
+          : "Simulation " + NOMS_SIM[type] + " : jusqu'à " + d.simulation.pic + " pendant " + d.simulation.reste + " s.";
+      })
+      .catch(function () { info.textContent = "Serveur injoignable."; });
+  }
+  document.getElementById("sim-gaz").addEventListener("click", function () { simuler("gaz"); });
+  document.getElementById("sim-temp").addEventListener("click", function () { simuler("temperature"); });
+  document.getElementById("sim-stop").addEventListener("click", function () { simuler("stop"); });
 
   // ---- Boucle -----------------------------------------------------------
   function lire() {
@@ -499,7 +604,8 @@
         if (d.perime) {
           etat("perime", "Mesure périmée", "Le serveur répond mais l'Arduino n'envoie plus rien : vérifier le câble USB sur la tête du robot.");
         } else {
-          etat("direct", "En direct");
+          var alerte = majAlertes(d);
+          etat("direct", "En direct", alerte && alerte.texte, alerte && alerte.danger);
           majRadar(d);
           var mc = lireCm(d, "c");
           if (mc.etat !== "absent") ajouter("distance", mc.cm);
@@ -549,6 +655,9 @@
     "obstacle":     { texte: "Obstacle",         icone: "■", coul: "#ff5d6c" },
     "tourne":       { texte: "Tourne",           icone: "↻", coul: "#b48cff", anime: true },
     "libre":        { texte: "Passage trouvé",   icone: "✓", coul: "#3ddc97" },
+    "alerte":       { texte: "Alerte capteur",   icone: "⚠", coul: "#ff5d6c", anime: true },
+    "bord":         { texte: "Bord de la zone",  icone: "⇥", coul: "#ffb547" },
+    "perdu":        { texte: "Hors caméra",      icone: "?", coul: "#ff5d6c" },
     "arret":        { texte: "Arrêté",           icone: "■", coul: "#ffb547" },
     "refus":        { texte: "Robot refuse",     icone: "!", coul: "#ff5d6c" },
     "erreur":       { texte: "Erreur",           icone: "!", coul: "#ff5d6c" },
@@ -613,11 +722,104 @@
       .then(function () { setTimeout(lireMarche, 300); });
   }
 
+  // ---- Carte du sol (cartographie.py, relayee par le serveur) -------------
+  var MARGE_BORD_CM = 25;         // meme marge que marche_obstacle.py
+  var ROBOT_PERDU_S = 1.5;        // CARTE_AGE_MAX_S de marche_obstacle.py
+  var plan = document.getElementById("plan-svg");
+  var planCamera = document.getElementById("plan-camera");
+
+  function texteSvg(x, y, texte, attrs) {
+    var t = el("text", attrs || {});
+    t.setAttribute("x", x); t.setAttribute("y", y);
+    t.textContent = texte;
+    plan.appendChild(t);
+  }
+
+  function majCarte(d) {
+    while (plan.firstChild) plan.removeChild(plan.firstChild);
+    var etatPlan = document.getElementById("plan-etat");
+    var robot = d.robot;
+    var perdu = !robot || robot.age > ROBOT_PERDU_S;
+    document.getElementById("plan-position").textContent = robot ? Math.round(robot.x) + ", " + Math.round(robot.y) + " cm" : "—";
+    document.getElementById("plan-cap").textContent = robot ? robot.cap + "°" : "—";
+    document.getElementById("plan-obstacles").textContent = d.calibre ? (d.reference ? d.obstacles.length : "?") : "—";
+    var ref = document.getElementById("plan-reference");
+    ref.textContent = d.reference ? "photographié" : "à photographier";
+    ref.style.color = d.reference ? "" : "var(--orange)";
+
+    if (!d.calibre || !d.zone) {
+      etatPlan.textContent = d.erreur || "pas de carte";
+      etatPlan.style.color = "var(--orange)";
+      plan.setAttribute("viewBox", "0 0 200 150");
+      texteSvg(100, 75, "Pas de carte", { fill: "#8b98a8", "font-size": "12", "text-anchor": "middle" });
+      return;
+    }
+    etatPlan.textContent = perdu ? "robot hors de vue" : "en direct";
+    etatPlan.style.color = perdu ? "var(--rouge)" : "var(--vert)";
+
+    var L = d.zone.largeur, H = d.zone.hauteur, p = 12, m = MARGE_BORD_CM;
+    plan.setAttribute("viewBox", (-p) + " " + (-p) + " " + (L + 2 * p) + " " + (H + 2 * p));
+    plan.appendChild(el("rect", { x: 0, y: 0, width: L, height: H, rx: 2,
+      fill: "rgba(92,200,255,.05)", stroke: "#5cc8ff", "stroke-width": 1 }));
+    if (L > 2 * m && H > 2 * m) {
+      plan.appendChild(el("rect", { x: m, y: m, width: L - 2 * m, height: H - 2 * m,
+        fill: "none", stroke: "#8b98a8", "stroke-opacity": ".5", "stroke-width": .6, "stroke-dasharray": "3 3" }));
+    }
+    if (d.grille && d.grille.lignes) {
+      var c = d.grille.cellule;
+      d.grille.lignes.forEach(function (ligne, j) {
+        for (var i = 0; i < ligne.length; i++) {
+          if (ligne[i] === "#") plan.appendChild(el("rect", { x: i * c, y: j * c, width: c, height: c, fill: "rgba(255,93,108,.15)" }));
+        }
+      });
+    }
+    (d.obstacles || []).forEach(function (o) {
+      plan.appendChild(el("rect", { x: o.x, y: o.y, width: o.l, height: o.h, rx: 1.5,
+        fill: "rgba(255,93,108,.35)", stroke: "#ff5d6c", "stroke-width": 1 }));
+    });
+    [[0, 0, "0"], [L, 0, "1"], [L, H, "2"], [0, H, "3"]].forEach(function (k) {
+      plan.appendChild(el("rect", { x: k[0] - 4, y: k[1] - 4, width: 8, height: 8, fill: "#e6edf3" }));
+      texteSvg(k[0], k[1] + 3, k[2], { fill: "#0b0f14", "font-size": "7", "font-weight": "700", "text-anchor": "middle" });
+    });
+    if (robot) {
+      var coul = perdu ? "#8b98a8" : "#3ddc97";
+      var a = robot.cap * Math.PI / 180;
+      plan.appendChild(el("line", { x1: robot.x, y1: robot.y, x2: robot.x + 30 * Math.cos(a), y2: robot.y + 30 * Math.sin(a),
+        stroke: coul, "stroke-width": 2, "stroke-linecap": "round" }));
+      plan.appendChild(el("circle", { cx: robot.x, cy: robot.y, r: 12, fill: coul, "fill-opacity": ".3", stroke: coul, "stroke-width": 1.5 }));
+    }
+  }
+
+  function lireCarte() {
+    fetch(base() + "/carte", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(majCarte)
+      .catch(function () { majCarte({ calibre: false, erreur: "serveur injoignable" }); })
+      .then(function () { setTimeout(lireCarte, 300); });
+  }
+
+  function rafraichirCamera() {
+    if (planCamera.hidden) return;
+    planCamera.src = base() + "/carte.jpg?t=" + Date.now();
+    setTimeout(rafraichirCamera, 1000);
+  }
+  document.getElementById("plan-voir").addEventListener("click", function () {
+    planCamera.hidden = !planCamera.hidden;
+    rafraichirCamera();
+  });
+  document.getElementById("plan-photo").addEventListener("click", function () {
+    var info = document.getElementById("plan-info");
+    fetch(base() + "/reference", { method: "POST" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { info.textContent = d.erreur ? d.erreur : "Photo du sol vide prise : les obstacles posés ensuite seront détectés."; })
+      .catch(function () { info.textContent = "Serveur injoignable."; });
+  });
+
   function animer() {
-    dessiner("gaz", 0, 1023);
+    dessiner("gaz", 0, 1023, seuils.gaz_alerte);
     dessiner("vapeur", 0, 1023);
     dessiner("lum", 0, 1023);
-    dessiner("temp", 0, 50);
+    dessiner("temp", 0, 50, seuils.temp_alerte);
     dessiner("distance", 0, PORTEE_CM, SEUIL_CM);
     requestAnimationFrame(animer);
   }
@@ -625,6 +827,7 @@
   lire();
   lireBatterie();
   lireMarche();
+  lireCarte();
   requestAnimationFrame(animer);
 })();
 </script>

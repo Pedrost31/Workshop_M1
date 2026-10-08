@@ -1,0 +1,24 @@
+name: Lint
+
+on:
+  push:
+    branches: [main, master, feat/ci-cd]
+  pull_request:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: Ruff (erreurs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          args: >-
+            check
+            capteurs_serveur.py marche_obstacle.py cartographie.py verifier_api.py
+            collector/collector.py sms-notifier/app.py camera/app.py tests
+            --select E9,F63,F7,F82 --output-format=github

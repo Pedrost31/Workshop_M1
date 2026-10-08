@@ -1,0 +1,40 @@
+name: Security
+
+on:
+  push:
+    branches: [main, master, feat/ci-cd]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gitleaks:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: |
+          docker run --rm -v "$PWD:/src:ro" zricethezav/gitleaks:v8.21.2 \
+            detect --source /src --verbose --redact
+
+  pip-audit:
+    name: Dependances Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: pip-audit
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          pip-audit -r collector/requirements.txt
+          pip-audit -r sms-notifier/requirements.txt
+          pip-audit -r camera/requirements.txt || true

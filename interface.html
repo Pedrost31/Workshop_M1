@@ -172,6 +172,21 @@
   .plan img { width: 100%; border-radius: 10px; border: 1px solid var(--ligne); margin-top: 10px; }
   .carte.en-alerte { border-color: var(--orange); box-shadow: 0 0 0 1px var(--orange) inset; }
   .carte.en-danger { border-color: var(--rouge); box-shadow: 0 0 0 1px var(--rouge) inset; }
+  .surveillance { grid-column: span 12; }
+  .surv-corps { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .surv-corps { grid-template-columns: minmax(0, 1fr); } }
+  .surv-video {
+    width: 100%; border-radius: 12px; border: 1px solid var(--ligne);
+    background: #000; min-height: 220px; display: block;
+  }
+  .surv-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .surv-pills span {
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    background: rgba(255,255,255,.04); border: 1px solid var(--ligne);
+  }
+  .surv-pills .ok { color: var(--vert); border-color: rgba(61,220,151,.4); }
+  .surv-pills .warn { color: var(--orange); border-color: rgba(255,181,71,.4); }
+  .surv-pills .bad { color: var(--rouge); border-color: rgba(255,93,108,.4); }
 </style>
 </head>
 <body>
@@ -279,6 +294,27 @@
       </div>
     </section>
 
+    <section class="carte surveillance" id="carte-surv">
+      <h2>Surveillance serveurs <span class="petit" id="surv-etat">Logitech C270</span></h2>
+      <div class="surv-corps">
+        <img class="surv-video" id="surv-video" alt="Flux webcam salle serveurs">
+        <div>
+          <div class="surv-pills">
+            <span id="surv-cam">caméra…</span>
+            <span id="surv-motion">mouvement…</span>
+            <span id="surv-faces">visages…</span>
+          </div>
+          <div class="petit" id="surv-info">Place-toi face à la caméra, tape ton prénom, puis enregistre 3 à 5 photos (angles légèrement différents).</div>
+          <div class="boutons" style="margin-top:10px">
+            <input id="surv-nom" placeholder="Prénom" spellcheck="false" style="background:var(--carte);color:var(--texte);border:1px solid var(--ligne);border-radius:10px;padding:8px 12px;font:inherit;width:140px">
+            <button id="surv-enroll">Enregistrer ce visage</button>
+          </div>
+          <div class="petit" id="surv-enroll-msg" style="margin-top:8px"></div>
+          <ul class="journal" id="surv-journal"></ul>
+        </div>
+      </div>
+    </section>
+
     <section class="carte capteur" id="carte-gaz">
       <h2>Gaz <span class="petit" id="gaz-info">MQ-2</span></h2>
       <div class="grand-chiffre" id="v-gaz">—</div>
@@ -329,6 +365,7 @@
   // Page servie par le robot : meme adresse. Fichier ouvert sur le PC : champ editable.
   var champ = document.getElementById("adresse");
   var depuisFichier = location.protocol === "file:";
+  var depuisLive = location.port === "5500";
   if (depuisFichier) {
     document.getElementById("bloc-adresse").hidden = false;
     try { var memo = localStorage.getItem("yanshee-adresse"); if (memo) champ.value = memo; } catch (e) {}
@@ -336,7 +373,10 @@
       try { localStorage.setItem("yanshee-adresse", champ.value.trim()); } catch (e) {}
     });
   }
-  function base() { return depuisFichier ? champ.value.trim().replace(/\/+$/, "") : ""; }
+  function base() {
+    if (depuisLive) return "http://localhost:8000";
+    return depuisFichier ? champ.value.trim().replace(/\/+$/, "") : "";
+  }
 
   // ---- Radar ------------------------------------------------------------
   var CX = 160, CY = 168, R = 150;
@@ -824,10 +864,83 @@
     requestAnimationFrame(animer);
   }
 
+  // ---- Webcam surveillance salle serveurs --------------------------------
+  function lireCamera() {
+    var video = document.getElementById("surv-video");
+    fetch(base() + "/camera/status", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var cam = document.getElementById("surv-cam");
+        var mv = document.getElementById("surv-motion");
+        var fv = document.getElementById("surv-faces");
+        var etat = document.getElementById("surv-etat");
+        var carte = document.getElementById("carte-surv");
+        if (d.up && video.getAttribute("data-live") !== "1") {
+          video.src = base() + "/camera/video?t=" + Date.now();
+          video.setAttribute("data-live", "1");
+        }
+        if (!d.up) {
+          video.removeAttribute("data-live");
+          cam.textContent = "hors ligne"; cam.className = "bad";
+          mv.textContent = "—"; mv.className = "";
+          fv.textContent = "—"; fv.className = "";
+          etat.textContent = d.erreur || "lancer camera/start-camera.ps1";
+          carte.classList.remove("en-alerte", "en-danger");
+          return;
+        }
+        cam.textContent = "caméra OK"; cam.className = "ok";
+        if (d.motion) { mv.textContent = "mouvement"; mv.className = "warn"; }
+        else { mv.textContent = "salle calme"; mv.className = "ok"; }
+        var connus = (d.known || []).join(", ");
+        if (d.unknown) {
+          fv.textContent = d.unknown + " inconnu(s)"; fv.className = "bad";
+        } else if (connus) {
+          fv.textContent = connus; fv.className = "ok";
+        } else {
+          fv.textContent = "aucun visage"; fv.className = "";
+        }
+        etat.textContent = (d.fps ? d.fps + " fps · " : "") + "C270";
+        carte.classList.toggle("en-danger", !!d.unknown);
+        carte.classList.toggle("en-alerte", !!d.motion && !d.unknown);
+        var info = document.getElementById("surv-info");
+        if (d.last_event) info.textContent = "Dernier événement : " + d.last_event;
+        else if (d.known_people && d.known_people.length) {
+          info.textContent = "Personnes autorisées : " + d.known_people.join(", ");
+        }
+      })
+      .catch(function () {
+        document.getElementById("surv-cam").textContent = "hors ligne";
+        document.getElementById("surv-cam").className = "bad";
+        document.getElementById("surv-etat").textContent = "lancer camera/start-camera.ps1";
+      })
+      .then(function () { setTimeout(lireCamera, 1000); });
+  }
+
+  document.getElementById("surv-enroll").addEventListener("click", function () {
+    var nom = document.getElementById("surv-nom").value.trim();
+    var msg = document.getElementById("surv-enroll-msg");
+    if (!nom) { msg.textContent = "Tape un prénom d'abord."; return; }
+    msg.textContent = "Capture…";
+    fetch(base() + "/camera/enroll", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nom })
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok) { msg.textContent = res.d.erreur || "Échec de l'enregistrement."; return; }
+        var reste = Math.max(0, 3 - res.d.photos);
+        msg.textContent = res.d.nom + " : " + res.d.photos + " photo(s)."
+          + (reste ? " Encore " + reste + " pour un meilleur résultat." : " Enregistrement suffisant — éloigne-toi puis reviens pour tester.");
+      })
+      .catch(function () { msg.textContent = "Caméra injoignable."; });
+  });
+
   lire();
   lireBatterie();
   lireMarche();
   lireCarte();
+  lireCamera();
   requestAnimationFrame(animer);
 })();
 </script>

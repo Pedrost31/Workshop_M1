@@ -24,7 +24,7 @@ jobs:
     name: Promtool
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: check config
         run: |
           docker run --rm --entrypoint promtool \
@@ -42,7 +42,7 @@ jobs:
     name: Alertmanager
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: check-config
         run: |
           docker run --rm --entrypoint amtool \
@@ -54,6 +54,6 @@ jobs:
     name: Dashboard JSON
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: JSON valide
         run: python -m json.tool grafana/dashboards/yanshee.json > /dev/null

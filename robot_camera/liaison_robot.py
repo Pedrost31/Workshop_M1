@@ -23,7 +23,7 @@ import threading
 import time
 
 # =============================== PARAMÈTRES ===============================
-ROBOT_IP = "192.168.1.50"      # À REMPLACER par l'IP du Yanshee (même réseau Wi-Fi que le PC)
+ROBOT_IP = "10.124.7.2"        # IP du Yanshee de l'équipe (même réseau Wi-Fi que le PC)
 ROBOT_PORT = 5005              # doit être le même que PORT dans robot_serveur.py
 SIMULATION = True              # True = pas de robot, les ordres sont seulement affichés
 DELAI_CONNEXION_S = 3          # temps maxi pour joindre le robot

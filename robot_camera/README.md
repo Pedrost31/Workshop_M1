@@ -97,7 +97,7 @@ Cliquez sur une de ces fenêtres avant d'utiliser le clavier.
 | `r` | **Référence** : photographie la zone vide, de préférence sans le robot. À refaire à chaque séance, car la lumière change. |
 | `g` | Calculer le trajet et **lancer le guidage**. |
 | `s` | Stopper le guidage. |
-| `+` / `-` (ou `p` / `m`) | Agrandir ou réduire la **marge de sécurité** autour des obstacles (25 cm au départ). |
+| `+` / `-` (ou `p` / `m`) | Agrandir ou réduire la **marge de sécurité** autour des obstacles (40 cm au départ). |
 | clic gauche sur la carte | Choisir une nouvelle destination. |
 | `q` | Quitter. |
 
@@ -199,7 +199,14 @@ Réglage : `TOLERANCE` en haut du fichier. Baissez-la (par exemple 0.45) s'il y 
 
 Ce fonctionnement compense la dérive d'un humanoïde qui marche.
 
-En plus, le robot consulte son **capteur à ultrasons** avant et pendant la marche. Si quelque chose est trop proche, il s'arrête et la carte affiche « ARRET DE SECURITE ».
+La marche reprend le code de l'équipe (`marche_obstacle.py`) : mêmes mouvements YanAPI (`walk`, `turn around`, `stop_play_motion` puis `reset`) et mêmes capteurs, lus chez `capteurs_serveur.py`.
+
+Pendant la marche, le robot vérifie ses capteurs 10 fois par seconde. Il s'arrête tout seul, l'annonce à voix haute, et la carte du PC affiche « ARRET DE SECURITE » dans ces cas :
+- l'ultrason voit un obstacle à moins de 35 cm ;
+- une alerte gaz ou température est en cours ;
+- les capteurs ne répondent plus.
+
+L'état du guidage apparaît aussi dans l'interface web de l'équipe (`http://10.124.7.2:8080`).
 
 ### Étape A — Test sans réseau
 
@@ -231,27 +238,37 @@ Puis lancez `python cartographie.py coin`. Le terminal 1 affiche les ordres reç
 
 ### Étape C — Avec le vrai robot (quand le câblage sera réparé)
 
-1. Branchez le PC et le Yanshee sur **le même Wi-Fi**. Notez l'IP du robot : dans l'appli Yanshee, ou avec la commande `hostname -I` sur le robot.
-2. Copiez `robot_serveur.py` sur le robot. Utilisez les identifiants fournis avec le robot :
+Le robot de l'équipe est à l'adresse **`10.124.7.2`** (utilisateur `pi`), déjà réglée dans `liaison_robot.py`. Le PC doit être sur **le même Wi-Fi**.
+
+1. Sur le robot, `capteurs_serveur.py` doit tourner (c'est lui qui lit l'ultrason et les capteurs gaz/température). **N'utilisez pas `marche_obstacle.py` en même temps** : les deux scripts commanderaient les jambes du robot.
+2. Depuis le dossier `robot_camera`, copiez le script sur le robot et connectez-vous :
 
    ```powershell
-   scp robot_serveur.py <utilisateur>@<IP_DU_ROBOT>:~/
+   scp robot_serveur.py pi@10.124.7.2:/home/pi/
+   ssh pi@10.124.7.2
    ```
 
-3. Sur le robot, en SSH ou depuis son terminal :
+3. Sur le robot (vitesse « slow » par défaut, ou par exemple `python3 robot_serveur.py normal`) :
 
    ```bash
    python3 robot_serveur.py
    ```
 
-   Si le message `YanAPI indisponible -> MODE SIMULATION` apparaît, YanAPI n'a pas été trouvée.
-4. Sur le PC, dans `liaison_robot.py`, mettez `ROBOT_IP = "<IP_DU_ROBOT>"` et `SIMULATION = False`.
-5. Vérifiez la liaison avec `python liaison_robot.py`. Le ping doit répondre `{'ok': True, ...}`.
-6. **Adaptez la partie marquée « À ADAPTER au SDK Yanshee »** dans `robot_serveur.py` (classe `CommandeYanshee`) :
-   - vérifiez les noms des mouvements YanAPI (`walk`, `turn around`), la fonction d'arrêt et le format de réponse du capteur à ultrasons ;
-   - mesurez `CM_PAR_PAS` : faites 10 pas, mesurez la distance, divisez par 10 ;
-   - mesurez `DEG_PAR_ROTATION` : l'angle tourné par un mouvement « turn around » ;
+   Si le message `YanAPI inutilisable -> MODE SIMULATION` apparaît, YanAPI n'a pas été trouvée.
+4. Sur le PC, dans `liaison_robot.py`, mettez `SIMULATION = False`.
+5. Vérifiez la liaison avec `python liaison_robot.py`. Le ping doit répondre `{'ok': True, 'simulation': False, ...}`.
+6. **Réglez la partie « À ADAPTER au robot réel »** en haut de `robot_serveur.py` :
+   - mesurez `CM_PAR_PAS` : faites 10 pas en « slow », mesurez la distance, divisez par 10 ;
+   - mesurez `DEG_PAR_ROTATION` : l'angle tourné par un seul mouvement « turn around » ;
    - si le robot tourne du mauvais côté, mettez `SENS_ROTATION = -1`.
+
+**Variante sans rien copier sur le robot (mode distant, comme pour `marche_obstacle.py`).** Tout tourne sur le PC, avec `YanAPI.py` copié depuis le robot à côté de `robot_serveur.py` :
+
+```powershell
+$env:ROBOT_IP="10.124.7.2"; $env:URL_CAPTEURS="http://10.124.7.2:8080/capteurs"; python robot_serveur.py
+```
+
+Dans ce cas, dans `liaison_robot.py`, mettez `ROBOT_IP = "127.0.0.1"` et `SIMULATION = False`.
 
 Le port utilisé est **5005**, en TCP. Les messages sont en JSON ; leur format est décrit en tête de `robot_serveur.py`.
 
@@ -262,4 +279,4 @@ Le port utilisé est **5005**, en TCP. Les messages sont en JSON ; leur format e
 3. Même chose avec `dalle`.
 4. `python identification.py coin` : Module 2.
 5. `python controle_acces.py` : Module 3, avec la caméra à l'entrée.
-6. Robot : `python3 robot_serveur.py` sur le Yanshee, puis `SIMULATION = False` sur le PC, puis `python cartographie.py coin` (ou `identification.py`).
+6. Robot : `capteurs_serveur.py` + `python3 robot_serveur.py` sur le Yanshee (sans `marche_obstacle.py`), puis `SIMULATION = False` sur le PC, puis `python cartographie.py coin` (ou `identification.py`).

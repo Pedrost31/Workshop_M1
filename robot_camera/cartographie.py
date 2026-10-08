@@ -48,8 +48,8 @@ DIFF_THRESH, MIN_AREA = 40, 150   # sensibilité de la différence d'images (seu
 GOAL = (100, 130)              # cm, destination par défaut (modifiable au clic)
 
 # --- Marge de sécurité autour des obstacles (réglable en direct avec + / -) ---
-MARGE_SECURITE_CM = 25         # élargie par rapport à la 1re version (20) : la vue inclinée est moins précise
-MARGE_MIN, MARGE_MAX, MARGE_PAS = 5, 60, 5
+MARGE_SECURITE_CM = 40         # distance mini gardée entre le robot et un obstacle (vue inclinée moins précise)
+MARGE_MIN, MARGE_MAX, MARGE_PAS = 5, 80, 5
 
 # --- Robot ---
 ROBOT_HAUTEUR_CM = 37          # hauteur du Yanshee : sert à masquer toute sa silhouette (pas seulement ses pieds)

@@ -15,3 +15,5 @@ robot_camera/yolov8n.pt
 robot_camera/map.json
 robot_camera/calib_*.json
 robot_camera/autorises/
+camera/models/*.part
+camera/models/face_recognition_sface_2021dec.onnx

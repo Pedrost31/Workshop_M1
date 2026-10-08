@@ -27,16 +27,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: check config
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v2.55.1 \
-            promtool check config /etc/prometheus/prometheus.yml
+            check config /etc/prometheus/prometheus.yml
       - name: check rules
         run: |
-          docker run --rm \
+          docker run --rm --entrypoint promtool \
             -v "$PWD/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v2.55.1 \
-            promtool check rules /etc/prometheus/alert.rules.yml
+            check rules /etc/prometheus/alert.rules.yml
 
   alertmanager:
     name: Alertmanager

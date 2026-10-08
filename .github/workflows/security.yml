@@ -37,4 +37,4 @@ jobs:
           python -m pip install --upgrade pip pip-audit
           pip-audit -r collector/requirements.txt
           pip-audit -r sms-notifier/requirements.txt
-          pip-audit -r camera/requirements.txt || true
+          pip-audit -r camera/requirements.txt

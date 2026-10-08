@@ -32,7 +32,7 @@ jobs:
     name: docker compose config
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Valider le compose
         run: docker compose -f docker-compose.yml config --quiet
 
@@ -40,6 +40,6 @@ jobs:
     name: Build images
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build collector + notifier
         run: docker compose build collector sms-notifier

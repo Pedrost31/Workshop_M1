@@ -280,11 +280,15 @@ def camera_status():
         return jsonify(up=False, erreur="camera injoignable"), 502
 
 
-@app.route("/camera/enroll", methods=["POST"])
-def camera_enroll():
+@app.route("/camera/enroll", defaults={"action": ""}, methods=["POST"])
+@app.route("/camera/enroll/<action>", methods=["POST"])
+def camera_enroll(action):
+    """/enroll (une photo), /enroll/start et /enroll/stop (mode enregistrement auto)."""
+    if action not in ("", "start", "stop"):
+        return jsonify(ok=False, erreur="action inconnue"), 404
     try:
         r = requests.post(
-            CAMERA_URL + "/enroll",
+            CAMERA_URL + "/enroll" + ("/" + action if action else ""),
             json=request.get_json(silent=True) or {},
             timeout=5,
         )
@@ -294,6 +298,22 @@ def camera_enroll():
         )
     except Exception:  # noqa: BLE001
         return jsonify(ok=False, erreur="camera injoignable"), 502
+
+
+@app.route("/camera/access", defaults={"fichier": ""})
+@app.route("/camera/access/<fichier>")
+def camera_access(fichier):
+    """Journal des acces (JSON) ou photo d'une decision."""
+    try:
+        r = requests.get(CAMERA_URL + "/access" + ("/" + fichier if fichier else ""), timeout=2)
+        return Response(
+            r.content, status=r.status_code,
+            content_type=r.headers.get("Content-Type", "application/json"),
+        )
+    except Exception:  # noqa: BLE001
+        if fichier:
+            return jsonify(erreur="camera injoignable"), 502
+        return jsonify(events=[], erreur="camera injoignable"), 502
 
 
 @app.route("/camera/video")

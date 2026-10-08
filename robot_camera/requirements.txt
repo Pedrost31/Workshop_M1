@@ -1,0 +1,14 @@
+# Dépendances côté PC — installation : python -m pip install -r requirements.txt
+#
+# Module 1 (cartographie) + liaison robot
+numpy
+opencv-contrib-python>=4.7     # cv2 avec ArUco (déjà installé sur ce PC : version 5.0)
+
+# Module 2 (identification YOLO) — installe aussi PyTorch version CPU (~200 Mo)
+ultralytics
+
+# Module 3 (reconnaissance faciale) : NE PAS l'installer via ce fichier,
+# suivre la section "Module 3" du README.md (installation en 3 commandes).
+#
+# Côté robot (robot_serveur.py) : aucune dépendance, seulement Python 3 et YanAPI
+# (déjà présente sur le Yanshee).

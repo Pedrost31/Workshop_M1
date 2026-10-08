@@ -1,6 +1,9 @@
-# Secrets / config locale
-.env
-
-# Python
 __pycache__/
 *.pyc
+.pytest_cache/
+*.log
+.env
+.vscode/
+YanAPI.py
+YanAPI/
+sol_reference.png
